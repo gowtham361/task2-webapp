@@ -14,16 +14,32 @@ pipeline {
             }
         }
 
+        stage('Detect Maven Project') {
+            steps {
+                script {
+                    // Search for the directory containing pom.xml
+                    MAVEN_DIR = sh(
+                        script: "find . -name 'pom.xml' -exec dirname {} \\;",
+                        returnStdout: true
+                    ).trim()
+                    echo "Maven project found in: ${MAVEN_DIR}"
+                }
+            }
+        }
+
         stage('Maven Build') {
             steps {
-                // No subfolder needed, just run Maven in workspace root
-                sh 'mvn clean package'
+                dir("${MAVEN_DIR}") {
+                    sh 'mvn clean package'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t $DOCKER_IMAGE ."
+                dir("${MAVEN_DIR}") {
+                    sh "docker build -t $DOCKER_IMAGE ."
+                }
             }
         }
 
