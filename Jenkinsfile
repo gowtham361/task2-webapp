@@ -4,7 +4,6 @@ pipeline {
     environment {
         DOCKER_IMAGE = "task2-webapp:v2"
         CONTAINER_NAME = "task2-container"
-        APP_PORT = "8082"
     }
 
     stages {
@@ -16,12 +15,13 @@ pipeline {
 
         stage('Maven Build') {
             steps {
-                script {
-                    // Build only if pom.xml exists
-                    if (fileExists('pom.xml')) {
-                        sh 'mvn clean package -DskipTests'
-                    } else {
-                        error "pom.xml not found! Check project structure."
+                dir('task2-webapp') {  // <- enter the folder containing pom.xml
+                    script {
+                        if (fileExists('pom.xml')) {
+                            sh 'mvn clean package -DskipTests'
+                        } else {
+                            error "pom.xml not found! Check project structure."
+                        }
                     }
                 }
             }
@@ -29,15 +29,17 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${DOCKER_IMAGE} ."
+                dir('task2-webapp') {  // <- Dockerfile is also inside this folder
+                    sh "docker build -t ${DOCKER_IMAGE} ."
+                }
             }
         }
 
         stage('Stop & Remove Old Container') {
             steps {
                 sh """
-                docker stop ${CONTAINER_NAME} || true
-                docker rm ${CONTAINER_NAME} || true
+                    docker stop ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} || true
                 """
             }
         }
@@ -45,7 +47,7 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 sh """
-                docker run -d -p ${APP_PORT}:8080 --name ${CONTAINER_NAME} ${DOCKER_IMAGE}
+                    docker run -d -p 8082:8080 --name ${CONTAINER_NAME} ${DOCKER_IMAGE}
                 """
             }
         }
@@ -53,12 +55,11 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment Successful! Visit: http://<YOUR_SERVER_IP>:${APP_PORT}/task2-webapp"
+            echo "✅ Build & Deployment Successful!"
         }
         failure {
             echo "❌ Build/Deployment Failed! Check logs."
         }
     }
 }
-
 
